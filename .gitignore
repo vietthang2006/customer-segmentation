@@ -1,0 +1,58 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Jupyter / notebooks
+.ipynb_checkpoints/
+*.nbconvert.ipynb
+
+# Python packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Test / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# IDE/editor folders
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local data / generated artifacts
+data/*.csv
+!data/.gitkeep
+*.csv
+*.parquet
+*.pkl
+*.joblib
+*.h5
+*.hdf5
+model/*.pkl
+model/*.joblib
+output/
+results/
+logs/
+
+# Environment files
+.env
+.env.*
+
+# vscode
+.vscode
