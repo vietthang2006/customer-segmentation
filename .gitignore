@@ -56,3 +56,7 @@ logs/
 
 # vscode
 .vscode
+
+# data
+data/*.csv
+data/*.xlsx
