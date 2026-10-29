@@ -43,4 +43,4 @@ File này đã được xử lý các vấn đề sau:
 và chạy toàn bộ cell từ đầu đến cuối. Khi notebook chạy xong, file dữ liệu sạch sẽ được lưu tự động vào:
 
 ```text
-data/cleaned/cleaned_retail_online.xlsx
+data/cleaned/retail_online.parquet
