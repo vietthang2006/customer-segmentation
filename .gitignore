@@ -60,3 +60,4 @@ logs/
 # data
 data/*.csv
 data/*.xlsx
+data/cleaned/
