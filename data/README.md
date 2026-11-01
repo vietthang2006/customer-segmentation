@@ -24,7 +24,7 @@ https://archive.ics.uci.edu/dataset/352/online+retail
 Sau khi tải xuống, hãy lưu file dữ liệu vào thư mục này để dự án có thể đọc dữ liệu từ `data/`.
 
 ## Dữ liệu đã làm sạch (`cleaned data`)
-Sau khi chạy notebook xử lý dữ liệu, dự án sẽ sinh ra file dữ liệu giao dịch sạch tại:
+Sau khi chạy notebook xử lý dữ liệu, dự án sinh ra file dữ liệu giao dịch sạch tại:
 
 `data/cleaned/retail_online.parquet`
 
@@ -40,27 +40,46 @@ File này đã được xử lý các vấn đề sau:
 
 `notebook/cleaning.ipynb`
 
-và chạy toàn bộ cell từ đầu đến cuối. Khi chạy xong, file dữ liệu sạch sẽ được lưu tự động vào `data/cleaned/retail_online.parquet`.
+và chạy toàn bộ cell từ đầu đến cuối. Dữ liệu sạch sẽ được lưu tự động vào `data/cleaned/retail_online.parquet`.
 
-## Dữ liệu phục vụ phân cụm (`clustered data`)
-Sau khi hoàn tất bước khám phá dữ liệu (EDA) và tạo đặc trưng khách hàng trong:
+## Dữ liệu phục vụ phân cụm và xây dựng chân dung khách hàng (`clustered data`)
+Sau khi hoàn tất bước khám phá dữ liệu (EDA), kỹ thuật đặc trưng và chuẩn hóa trong:
 
 `notebook/eda.ipynb`
 
-Dữ liệu được tổng hợp ở cấp độ khách hàng (customer-level), tính toán các chỉ số RFM mở rộng, chuẩn hóa thang đo qua phép biến đổi `log1p`, loại bỏ các biến đa cộng tuyến và lưu ma trận đặc trưng cuối cùng vào:
+Dự án xuất ra 2 tệp dữ liệu độc lập tại thư mục `data/clustered/` phục vụ hai mục đích chuyên biệt:
 
-`data/clustered/retail_online.parquet` (hoặc `data/clustered/online_retail.parquet`)
+### 1. Tệp phục vụ phân cụm (`customer_scaled.parquet`)
+Đường dẫn: `data/clustered/customer_scaled.parquet`
 
-Tệp này gồm 8 đặc trưng cốt lõi sẵn sàng đưa vào các thuật toán phân cụm (K-Means, GMM, Hierarchical Clustering):
-- `CustomerID`: Định danh duy nhất của từng khách hàng
-- `Recency_log1p`: Số ngày từ lần mua gần nhất đến mốc phân tích (thang log)
-- `Frequency_log1p`: Số lượng đơn hàng mua thành công (thang log)
-- `NetSpending_log1p`: Doanh thu ròng sau khi trừ hàng hoàn trả (thang log)
-- `AvgOrderValue_log1p`: Giá trị đơn hàng trung bình AOV (thang log)
-- `NumDistinctProducts_log1p`: Số lượng mã sản phẩm (SKU) khác nhau đã mua (thang log)
-- `CustomerTenureDays_log1p`: Tổng thời gian gắn bó của khách hàng tính bằng ngày (thang log)
-- `PurchaseVelocity_Monthly_log1p`: Tần suất đặt hàng bình quân theo tháng (thang log)
-- `ReturnRate_log1p`: Tỷ lệ giá trị trả hàng trên tổng chi tiêu (thang log)
+Tệp gồm khóa `CustomerID` và 8 đặc trưng đã biến đổi qua `np.log1p` và chuẩn hóa về thang `StandardScaler` ($\mu = 0, \sigma = 1$), sẵn sàng đưa vào các thuật toán K-Means, GMM, Hierarchical Clustering:
+- `CustomerID`: Định danh duy nhất của khách hàng (dùng làm khóa nối)
+- `Recency_scaled`: Số ngày từ lần mua gần nhất đến mốc phân tích
+- `Frequency_scaled`: Số lượng đơn hàng mua thành công
+- `NetSpending_scaled`: Doanh thu ròng sau khi trừ hàng hoàn trả
+- `AvgOrderValue_scaled`: Giá trị đơn hàng trung bình (AOV)
+- `NumDistinctProducts_scaled`: Số lượng mã sản phẩm (SKU) khác nhau đã mua
+- `CustomerTenureDays_scaled`: Tổng thời gian gắn bó của khách hàng tính bằng ngày
+- `PurchaseVelocity_Monthly_scaled`: Tần suất đặt hàng bình quân theo tháng
+- `ReturnRate_scaled`: Tỷ lệ giá trị trả hàng trên tổng chi tiêu
 
-### Cách tạo dữ liệu phân cụm
-Chạy toàn bộ notebook `notebook/eda.ipynb` từ đầu đến cuối. Quá trình xử lý sẽ tự động tạo thư mục `data/clustered/` và xuất file `retail_online.parquet`.
+### 2. Tệp phục vụ phân tích chân dung khách hàng (`customer_raw_profiling.parquet`)
+Đường dẫn: `data/clustered/customer_raw_profiling.parquet`
+
+Tệp gồm khóa `CustomerID` và 12 đặc trưng giữ nguyên giá trị đo lường thực tế (ngày thật, số đơn thật, tiền thật bằng bảng Anh, tỷ lệ % thật). Tệp này dùng để gán nhãn cụm sau khi mô hình hóa, giúp tính trung bình/trung vị thực tế và vẽ chân dung khách hàng (Customer Profiling) phục vụ nghiệp vụ kinh doanh:
+- `CustomerID`: Khóa nối với kết quả phân cụm
+- `Recency`: Số ngày kể từ lần mua cuối cùng
+- `Frequency`: Tổng số đơn hàng mua thành công
+- `NetSpending`: Doanh thu ròng thực tế
+- `AvgOrderValue`: Giá trị đơn hàng trung bình
+- `NumDistinctProducts`: Số lượng SKU khác nhau đã mua
+- `CustomerTenureDays`: Thời gian gắn bó tính bằng ngày
+- `PurchaseVelocity_Monthly`: Số đơn trung bình mỗi tháng
+- `ReturnRate`: Tỷ lệ tiền hàng bị trả lại (từ 0.0 đến 1.0)
+- `GrossSpending`: Tổng tiền hàng đặt mua trước khi trừ trả hàng
+- `ReturnedAmount`: Tổng tiền hàng đã trả lại
+- `CancelFrequency`: Số lần phát sinh giao dịch hủy/trả hàng
+- `IsUK`: Biến chỉ báo khách hàng nội địa UK (1) hay quốc tế (0)
+
+### Cách tạo 2 tệp trên
+Chạy toàn bộ notebook `notebook/eda.ipynb` từ đầu đến cuối. Quá trình xử lý sẽ tự động tạo thư mục `data/clustered/` và xuất cả 2 tệp trên.

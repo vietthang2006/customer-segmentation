@@ -1,6 +1,6 @@
 # Customer Segmentation
 
-A customer segmentation pipeline on the Online Retail transaction dataset using extended RFM modeling, exploratory data analysis, and feature engineering to prepare customer representations for unsupervised clustering.
+A customer segmentation pipeline on the Online Retail transaction dataset using extended RFM modeling, exploratory data analysis, and feature engineering to prepare customer representations for unsupervised clustering and subsequent customer profiling.
 
 ---
 
@@ -17,10 +17,10 @@ data/cleaned/retail_online.parquet (Transaction level)
 src/feature_engineering.py (extract_customer_features)
    │
    ▼
-notebook/eda.ipynb (Distribution analysis, collinearity audit, log transformation, PCA)
+notebook/eda.ipynb (Distribution analysis, collinearity audit, log transformation, PCA, scaling)
    │
-   ▼
-data/clustered/retail_online.parquet (Customer-level feature matrix for clustering)
+   ├─► data/clustered/customer_scaled.parquet (Scaled feature matrix for clustering)
+   └─► data/clustered/customer_raw_profiling.parquet (Unscaled real-world metrics for profiling)
 ```
 
 ---
@@ -65,7 +65,7 @@ All visual evidence referenced below is generated in `notebook/eda.ipynb` and ar
   - `AvgOrderValue` skewness decreases from 36.38 to 0.01 (near-Gaussian symmetry).
   - `NumDistinctProducts` skewness decreases from 6.57 to -0.24.
   - `Frequency` and `PurchaseVelocity_Monthly` skewness drop to 1.21 and 1.61, respectively.
-- Decision: Substitute all continuous raw metrics with their `_log1p` counterparts prior to standardization.
+- Decision: Substitute all continuous raw metrics with their `_log1p` counterparts, followed by `StandardScaler`.
 
 ### Revenue Concentration
 ![Pareto Revenue Curve](img/img6.png)
@@ -88,14 +88,14 @@ All visual evidence referenced below is generated in `notebook/eda.ipynb` and ar
   - The lower triangle contains repeat purchasers.
   - The lower-right corner (`Tenure > 300`, `Recency < 30`) captures long-term loyalists.
   - The middle zone (`Tenure > 150`, `Recency > 100`) captures lapsed accounts.
-- Decision: Retain both `CustomerTenureDays_log1p` and `Recency_log1p` to allow clustering algorithms to distinguish account maturity from recent engagement.
+- Decision: Retain both `CustomerTenureDays` and `Recency` representations to allow clustering algorithms to distinguish account maturity from recent engagement.
 
 ### Return Behavior
 ![Return Behavior Analysis](img/img9.png)
 
 - Return behavior is zero-inflated: 63.6% of customers have zero returns.
 - Among the 36.4% who return, the majority exhibit a low frictional return rate (< 5% of gross spending). A narrow tail displays severe return rates between 30% and 100%.
-- Decision: Use `ReturnRate_log1p` as the sole relative return metric to separate high-risk returners from high-volume accounts with routine returns.
+- Decision: Retain `ReturnRate_log1p` transformed into `ReturnRate_scaled` as the relative return metric to separate high-risk returners from high-volume accounts with routine returns.
 
 ### Buyer Typologies
 ![Buyer Typology](img/img10.png)
@@ -130,28 +130,43 @@ Applying PCA to the 8 selected log-transformed features produces an interpretabl
 2. Order velocity denominator stabilization:
    In `PurchaseVelocity_Monthly = Frequency / (CustomerTenureDays / 30.4375)`, tenure in months is clipped at a lower bound of 1.0 month. This prevents single-purchase accounts created in the final days of observation from displaying artificial velocity spikes of 30+ orders per month.
 3. Outlier treatment:
-   Outliers in RFM features represent real commercial buyers. Rather than dropping or clipping upper tails, features are stabilized via `np.log1p`, ensuring cluster boundaries reflect natural business segments.
+   Outliers in RFM features represent real commercial buyers. Rather than dropping or clipping upper tails, features are stabilized via `np.log1p` and subsequently scaled via `StandardScaler`, ensuring cluster boundaries reflect natural business segments.
+4. Key preservation:
+   `CustomerID` is retained in all processed datasets as a primary key to allow cluster labels to be mapped directly back to unscaled transaction metrics during customer profiling.
 
 ---
 
-## 5. Final Feature Matrix for Clustering
+## 5. Exported Datasets
 
-The final dataset for clustering is exported to:
+The final step in `notebook/eda.ipynb` exports two dedicated Parquet files to `data/clustered/` to support both algorithm training and business profiling:
 
-`data/clustered/retail_online.parquet`
+### Clustering Feature Matrix (`data/clustered/customer_scaled.parquet`)
+Contains 4,360 customer rows with `CustomerID` and 8 standardized features ($\mu = 0, \sigma = 1$):
+- `CustomerID`: Unique identifier used for cluster label mapping
+- `Recency_scaled`: Standardized recency after `log1p`
+- `Frequency_scaled`: Standardized frequency after `log1p`
+- `NetSpending_scaled`: Standardized net revenue after `log1p`
+- `AvgOrderValue_scaled`: Standardized average order value after `log1p`
+- `NumDistinctProducts_scaled`: Standardized distinct SKU count after `log1p`
+- `CustomerTenureDays_scaled`: Standardized relationship lifespan after `log1p`
+- `PurchaseVelocity_Monthly_scaled`: Standardized monthly order velocity after `log1p`
+- `ReturnRate_scaled`: Standardized return rate after `log1p`
 
-The matrix contains 4,360 customer records and 8 normalized features:
-
-| Feature Name | Source Concept | Transformation | Role in Clustering |
-| :--- | :--- | :--- | :--- |
-| `Recency_log1p` | Days since last purchase | `log1p` | Churn and recency status |
-| `Frequency_log1p` | Total completed orders | `log1p` | Purchase frequency and loyalty |
-| `NetSpending_log1p` | Gross spend minus returns | `log1p` | Customer monetary value |
-| `AvgOrderValue_log1p` | Net spending per order | `log1p` | Basket expenditure level |
-| `NumDistinctProducts_log1p` | Unique product codes purchased | `log1p` | Breadth of product interest |
-| `CustomerTenureDays_log1p` | Days since first purchase | `log1p` | Customer relationship lifespan |
-| `PurchaseVelocity_Monthly_log1p` | Monthly order rate | `log1p` | Purchasing intensity over tenure |
-| `ReturnRate_log1p` | Returned amount / Gross spend | `log1p` | Operational return risk |
+### Profiling Feature Matrix (`data/clustered/customer_raw_profiling.parquet`)
+Contains 4,360 customer rows with `CustomerID` and 12 unscaled, real-world metrics. This file is retained so that cluster cohorts can be summarized using actual business units (GBP currency, order counts, days, percentages) without distortion:
+- `CustomerID`: Unique customer key
+- `Recency`: Unscaled days since last order
+- `Frequency`: Unscaled count of completed orders
+- `NetSpending`: Unscaled net revenue in GBP
+- `AvgOrderValue`: Unscaled average order value in GBP
+- `NumDistinctProducts`: Unscaled unique catalog items purchased
+- `CustomerTenureDays`: Unscaled account lifespan in days
+- `PurchaseVelocity_Monthly`: Unscaled expected monthly order rate
+- `ReturnRate`: Unscaled return proportion in $[0, 1]$
+- `GrossSpending`: Total invoiced revenue prior to returns
+- `ReturnedAmount`: Total monetary value of returned products
+- `CancelFrequency`: Count of return/cancellation invoices
+- `IsUK`: Domestic UK account flag (1 = UK, 0 = Non-UK)
 
 ---
 
@@ -161,29 +176,30 @@ The matrix contains 4,360 customer records and 8 normalized features:
 customer-segmentation/
 ├── data/
 │   ├── cleaned/
-│   │   └── retail_online.parquet      # Cleaned transaction logs
+│   │   └── retail_online.parquet           # Cleaned transaction logs
 │   ├── clustered/
-│   │   └── retail_online.parquet      # Prepared customer feature matrix
-│   ├── online_retail.xlsx             # Raw dataset
-│   └── README.md                      # Data documentation
+│   │   ├── customer_scaled.parquet         # Standardized matrix for clustering
+│   │   └── customer_raw_profiling.parquet  # Unscaled metrics for profiling
+│   ├── online_retail.xlsx                  # Raw dataset
+│   └── README.md                           # Data documentation
 ├── img/
-│   ├── img1.png to img10.png          # Visualizations generated during EDA
+│   ├── img1.png to img10.png               # Visualizations generated during EDA
 ├── notebook/
-│   ├── cleaning.ipynb                 # Transaction-level data cleaning
-│   └── eda.ipynb                      # Feature engineering, EDA, and export
+│   ├── cleaning.ipynb                      # Transaction-level data cleaning
+│   └── eda.ipynb                           # Feature engineering, EDA, scaling, export
 ├── src/
-│   ├── feature_engineering.py         # Customer aggregation and transformation
-│   └── visualization.py               # Plotting and PCA utilities
+│   ├── feature_engineering.py              # Customer aggregation and transformation
+│   └── visualization.py                    # Plotting and PCA utilities
 ├── .gitignore
-└── README.md                          # Project documentation
+└── README.md                               # Project documentation
 ```
 
 ---
 
-## 7. Next Steps: Clustering Phase
+## 7. Next Steps: Clustering and Profiling Phase
 
-With the feature matrix finalized, the next phase proceeds to:
-1. Feature scaling via `StandardScaler`.
-2. Cluster number determination using the Elbow Method, Silhouette Analysis, and Davies-Bouldin Index.
-3. Model evaluation comparing K-Means, Gaussian Mixture Models (GMM), and Hierarchical Agglomerative Clustering.
-4. Business profiling, cluster labeling, and persona interpretation.
+With the standardized matrix and profiling table exported, the workflow transitions to:
+1. Algorithm evaluation: Testing K-Means, Gaussian Mixture Models (GMM), and Hierarchical Agglomerative Clustering on `customer_scaled.parquet`.
+2. Model validation: Assessing cluster validity across varying $K$ values using the Elbow Method (Inertia), Silhouette Score, and Davies-Bouldin Index.
+3. Cluster mapping: Appending optimal cluster assignments back to `customer_raw_profiling.parquet`.
+4. Persona interpretation: Computing real-world median and mean profiles, visualizing cohort distinctions via snake plots and radar charts, and establishing business action plans for each segment.
