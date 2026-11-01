@@ -35,8 +35,8 @@ All visual evidence referenced below is generated in `notebook/eda.ipynb` and ar
 - Decision: Because behavioral patterns are structurally similar across territories aside from basket scale, geographic origin is retained as an auxiliary profiling flag (`IsUK`) rather than splitting the dataset into separate models.
 
 ### Feature Distributions and Skewness
-![Distribution Histograms](img/img1.png)
-![Distribution Boxplots](img/img2.png)
+![Distribution Histograms](img/EDA/img1.png)
+![Distribution Boxplots](img/EDA/img2.png)
 
 - Raw spending, frequency, and quantity features exhibit severe right-skewness. Median net spending is 300.50, whereas wholesale accounts in the tail reach 278,778.02.
 - Outliers in these features represent genuine B2B and institutional accounts rather than data collection errors. Dropping or winsorizing upper percentiles would discard the business's most valuable customer tier.
