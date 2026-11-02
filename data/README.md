@@ -81,5 +81,16 @@ Tệp gồm khóa `CustomerID` và 12 đặc trưng giữ nguyên giá trị đo
 - `CancelFrequency`: Số lần phát sinh giao dịch hủy/trả hàng
 - `IsUK`: Biến chỉ báo khách hàng nội địa UK (1) hay quốc tế (0)
 
-### Cách tạo 2 tệp trên
-Chạy toàn bộ notebook `notebook/eda.ipynb` từ đầu đến cuối. Quá trình xử lý sẽ tự động tạo thư mục `data/clustered/` và xuất cả 2 tệp trên.
+### 3. Tệp phân khúc khách hàng hoàn chỉnh (`customer_segmented.parquet`)
+Đường dẫn: `data/clustered/customer_segmented.parquet`
+
+Tệp kết quả cuối cùng sau khi phân cụm (4,320 dòng x 16 cột), bao gồm toàn bộ 12 đặc trưng đo lường gốc của `customer_raw_profiling.parquet`, kết hợp cùng nhãn phân khúc K-Means ($K=4$) và cờ dị biệt DBSCAN:
+- `CustomerID`: Khóa định danh khách hàng
+- 12 đặc trưng hành vi gốc (`Recency`, `Frequency`, `NetSpending`, `AvgOrderValue`, `NumDistinctProducts`, `CustomerTenureDays`, `PurchaseVelocity_Monthly`, `ReturnRate`, `GrossSpending`, `ReturnedAmount`, `CancelFrequency`, `IsUK`)
+- `Cluster`: Nhãn cụm K-Means số nguyên (`0, 1, 2, 3`)
+- `Cluster_Name`: Tên định danh chân dung kinh doanh (`VIP / Champions`, `Core Loyal / At-Risk Frequency`, `Newly Acquired / Promising Trials`, `Churned / Low-Value`)
+- `Is_Anomaly`: Cờ chỉ báo khách hàng dị biệt từ DBSCAN (`1` nếu là điểm ngoại lai/noise, `0` nếu thuộc phân phối thông thường)
+
+### Cách tạo các tệp trên
+- 2 tệp `customer_scaled.parquet` và `customer_raw_profiling.parquet`: Chạy toàn bộ notebook `notebook/eda.ipynb`.
+- Tệp `customer_segmented.parquet`: Chạy pipeline phân cụm và mapping qua module `src.profiling` trong `notebook/clustering.ipynb`.
